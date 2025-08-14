@@ -1,11 +1,12 @@
 import bs4
 from typing import Dict, List
 
-from utils import KanjiUtils
-from core.yomitan_dictionary import create_html_element
-from strategies import LinkHandlingStrategy
+from utils.lang import KanjiUtils
+from core.yomitan import create_html_element
+from strategies.link import DefaultLinkHandlingStrategy
 
-class OZK5LinkHandlingStrategy(LinkHandlingStrategy):
+
+class OZK5LinkHandlingStrategy(DefaultLinkHandlingStrategy):
     
     def handle_link_element(self, html_glossary: bs4.element.Tag, html_elements: List,
                             data_dict: Dict, class_list: List[str]) -> Dict:

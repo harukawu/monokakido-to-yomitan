@@ -1,10 +1,10 @@
 import os
-import time
 import json
 import glob
 import zipfile
 import regex as re
 
+from pathlib import Path
 from typing import List, Dict, Any
 from tqdm import tqdm
 from datetime import datetime
@@ -60,65 +60,64 @@ class FileUtils:
             file_paths.append(index_json_path)
             
         return file_paths
-        
-    
+
     @staticmethod
-    def zip_dictionary(file_paths: List[str], name: str, base_path: str, output_path: str, flatten_dict_folder: bool = True) -> str:
+    def zip_dictionary(file_paths: List[str], name: str, base_path: str, output_path: str,
+                       flatten_dict_folder: bool = True) -> str:
         if not file_paths:
             raise ValueError("No files provided")
 
         date_str = datetime.now().strftime("%Y-%m-%d")
         zip_name = name + f"[{date_str}].zip"
         zip_path = os.path.join(output_path, zip_name)
-        
-        total_files = len(file_paths)
 
-        with tqdm(total=total_files, desc="辞書圧縮処理", bar_format="「{desc}: {bar:30}」{percentage:3.0f}%{postfix}", 
-                ascii="░▒█") as p_bar:
-            
+        # Known folder types that should preserve their structure
+        preserve_structure_folders = {
+            'gaiji', 'graphics', 'images', 'images2', 'images_column',
+            'images_hitsujun', 'img', 'logos', 'icons', 'formulas',
+            'tables', 'pics', 'svg', 'icon'
+        }
+
+        total_files = len(file_paths)
+        with tqdm(total=total_files, desc="辞書圧縮処理",
+                  bar_format="「{desc}: {bar:30}」{percentage:3.0f}%{postfix}", ascii="░▒█") as p_bar:
+
             with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED, compresslevel=9) as zipf:
-                for i, file in enumerate(file_paths):
-                    path_parts = os.path.normpath(file).split(os.sep)
-                    
-                    # Determine the relative path in the zip
-                    if 'gaiji' in path_parts:
-                        rel_path = os.path.join('gaiji', os.path.basename(file))
-                    elif 'graphics' in path_parts:
-                        rel_path = os.path.join('graphics', os.path.basename(file))
-                    elif 'images' in path_parts:
-                        rel_path = os.path.join('images', os.path.basename(file))
-                    elif 'images2' in path_parts:
-                        rel_path = os.path.join('images2', os.path.basename(file))
-                    elif 'images_column' in path_parts:
-                        rel_path = os.path.join('images_column', os.path.basename(file))  
-                    elif 'images_hitsujun' in path_parts:
-                        rel_path = os.path.join('images_hitsujun', os.path.basename(file))
-                    elif 'img' in path_parts:
-                        rel_path = os.path.join('img', os.path.basename(file))
-                    elif 'logos' in path_parts:
-                        rel_path = os.path.join('logos', os.path.basename(file))
-                    elif 'icons' in path_parts:
-                        rel_path = os.path.join('icons', os.path.basename(file))
-                    elif 'formulas' in path_parts:
-                        rel_path = os.path.join('formulas', os.path.basename(file))
-                    elif 'tables' in path_parts:
-                        rel_path = os.path.join('tables', os.path.basename(file))
-                    elif 'svg' in path_parts:
-                        rel_path = os.path.join('svg', os.path.basename(file))
-                    elif str(file).endswith('.json') or str(file).endswith('.css'):
-                        rel_path = os.path.basename(file)
-                    elif '.DS_Store' in path_parts:
+                for file in file_paths:
+                    file_str = str(file)
+                    if '.DS_Store' in file_str:
                         continue
-                    else: 
-                        rel_path = os.path.join(base_path, file)
-                        
+
+                    path_parts = os.path.normpath(file_str).split(os.sep)
+
+                    # Find if any preserve_structure folder is in the path
+                    folder_match = None
+                    folder_index = -1
+                    for i, part in enumerate(path_parts):
+                        if part in preserve_structure_folders:
+                            folder_match = part
+                            folder_index = i
+                            break
+
+                    if folder_match:
+                        # Preserve structure from the matched folder onwards
+                        rel_path = os.path.join(*path_parts[folder_index:])
+                    elif file_str.endswith(('.json', '.css')):
+                        # Root level files
+                        rel_path = os.path.basename(file_str)
+                    else:
+                        # Default case - use relative path from base_path
+                        try:
+                            rel_path = os.path.relpath(file_str, base_path)
+                        except ValueError:
+                            # If relpath fails, use the full path structure
+                            rel_path = file_str
+
                     # Remove dictionary folder prefix if flatten_dict_folder=True
                     if flatten_dict_folder and rel_path.startswith(f"{name}/"):
-                        rel_path = os.path.basename(rel_path)  # Only keep filename
+                        rel_path = rel_path[len(f"{name}/"):]
 
-                    # Write file to zip
                     zipf.write(file, rel_path)
-                    
                     p_bar.update(1)
 
         print(f"完了しました: {zip_path}")
@@ -249,6 +248,7 @@ class FileUtils:
         
     @staticmethod
     def load_json(file_path: str):
+        file_path = Path(__file__).parent.parent.parent / file_path
         try:
             with open(file_path, 'r', encoding='utf-8') as file:
                 data = json.load(file)

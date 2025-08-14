@@ -1,17 +1,16 @@
 import os
-import json
 import regex as re
-from typing import Dict, List, Optional
+from typing import Dict, List
 
-from utils import KanjiUtils, FileUtils
-
-from core import Parser
+from core.parser_module import YomitanParser
+from core.yomitan import DicEntry, create_html_element
 from config import DictionaryConfig
 from parsers.TISMKANJI.tismkanji_utils import TismKanjiUtils
-from core.yomitan_dictionary import DicEntry, create_html_element
+from utils import FileUtils
+from utils.lang import KanjiUtils
 
     
-class TismKanjiParser(Parser):
+class TismKanjiParser(YomitanParser):
     
     def __init__(self, config: DictionaryConfig):
         super().__init__(config)

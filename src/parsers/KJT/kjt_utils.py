@@ -1,7 +1,8 @@
 import bs4
 import regex as re
+from typing import Optional
 
-from utils import KanjiUtils
+from utils.lang import KanjiUtils
 
 class KJTUtils: 
 	
@@ -224,7 +225,7 @@ class KJTUtils:
 	
 	
 	@staticmethod
-	def get_item_id(full_id: str) -> str:
+	def get_item_id(full_id: str) -> Optional[str]:
 		parts = full_id.split('-')
 		if len(parts) != 2:
 			print(f"Invalid ID format: {full_id}")

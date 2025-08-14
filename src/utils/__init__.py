@@ -1,11 +1,7 @@
 from .file_utils import FileUtils
-from .kanji_utils import KanjiUtils
-from .cn_utils import CNUtils
-from .sudachi_tags import sudachi_rules
+from .html_utils import HTMLUtils
 
 __all__ = [
     "FileUtils",
-    "KanjiUtils",
-    "CNUtils",
-    "sudachi_rules"
+    "HTMLUtils",
 ]

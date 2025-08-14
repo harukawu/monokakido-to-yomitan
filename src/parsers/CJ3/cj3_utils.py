@@ -1,7 +1,6 @@
 import os
 import bs4
 from typing import List
-from utils import CNUtils
 
 class CJ3Utils:
 	

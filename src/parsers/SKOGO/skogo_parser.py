@@ -1,78 +1,44 @@
-import os
 import bs4
 
-from utils import KanjiUtils
-from core import Parser
+from utils.lang import KanjiUtils
+from parsers.Monokakido.parser import MonokakidoParser
 from config import DictionaryConfig
-from handlers import process_unmatched_entries
-from parsers.SKOGO.skogo_utils import SKOGOUtils
 
 
-class SKOGOParser(Parser):
+class SKOGOParser(MonokakidoParser):
     
     def __init__(self, config: DictionaryConfig):
         super().__init__(config)
-        self.ignored_elements = {"entry-index"}
-        
-        
-    def _process_file(self, filename: str, xml: str):
-        local_count = 0
-        filename_without_ext = os.path.splitext(filename)[0]
-        
-        # Get keys from index
-        entry_keys = list(set(self.index_reader.get_keys_for_file(filename_without_ext)))
-        
-        # Parse xml
-        soup = bs4.BeautifulSoup(xml, "xml")
-        
-        # Use reading for normalisation
-        reading = SKOGOUtils.extract_reading(soup)
-        
-        # No reading found, try 現代 entry (e.g のたまう entry with link to のたまふ)
-        if not reading:
-            reading = SKOGOUtils.extract_gendai_reading(soup)
-            
-        # No reading found, try 歴史現代 reading and
-        if not reading:
-            # Parse these entries as specific case
-            head_word, reading = SKOGOUtils.extract_rekishi_gendai(soup)
-            if reading:
-                _, pos_tag = self.get_pos_tags(head_word)
-                local_count += self.parse_entry(head_word, reading, soup, pos_tag="")
-                
-        if not entry_keys and not reading:
-            guide_entry = SKOGOUtils.extract_guide_entry(soup)
-            if guide_entry:
-                if "識別" not in guide_entry:
-                    print(f"Found new guide type: {guide_entry} in file: {filename_without_ext}")
-                local_count += self.parse_entry(guide_entry, "", soup)
-                
-        # Normalise and match keys
-        normalized_keys = self.normalize_keys(reading, entry_keys)
-        matched_key_pairs = KanjiUtils.match_kana_with_kanji(normalized_keys)
-        matched_key_pairs = process_unmatched_entries(
-            self, filename, normalized_keys, matched_key_pairs, self.manual_handler
-        )
-        
-        # Determine search ranking (rank kana entries higher)
-        has_kanji = any(kanji_part for kanji_part, _ in matched_key_pairs)
-        search_rank = 1 if not has_kanji else 0 
-        self.keys = matched_key_pairs
-        
-        # Process each key pair
-        for kanji_part, kana_part in matched_key_pairs:
-            pos_tag = ""
-            if kanji_part:
-                _, pos_tag = self.get_pos_tags(kanji_part)
-                local_count += self.parse_entry(
-                    kanji_part, kana_part, soup, pos_tag=pos_tag, search_rank=search_rank
-                )
-            elif kana_part:
-                local_count += self.parse_entry(
-                    kana_part, "", soup, pos_tag=pos_tag, search_rank=search_rank
-                )
-                
-        if local_count == 0:
-            print(f"\nNo entry was parsed for file {filename_without_ext}") 
-            
-        return local_count
+
+    @staticmethod
+    def extract_guide_entry(soup):
+        """Extracts 識別 entries in the guide entries that dont have any keys."""
+        # E.g しかの識別
+        reading = ""
+
+        head_element = soup.find("識別見出行")
+        if head_element:
+            reading_element = head_element.find("識別見出")
+            if reading_element:
+                reading = reading_element.text.strip()
+
+            sub_element = head_element.find("識別見出サブ")
+            if sub_element:
+                guide_type = sub_element.text.strip()
+                entry_key = reading + guide_type
+                return KanjiUtils.clean_headword(entry_key)
+
+        return ""
+
+    def _parse_entries_from_html(self, soup: bs4.BeautifulSoup) -> int:
+        count = 0
+
+        head_word, reading = self.normalization_strategy.extract_rekishi_gendai(soup)
+        if reading:
+            count += self.parse_entry(head_word, reading, soup)
+
+        guide_entry = SKOGOParser.extract_guide_entry(soup)
+        if guide_entry:
+            count += self.parse_entry(guide_entry, "", soup)
+
+        return count

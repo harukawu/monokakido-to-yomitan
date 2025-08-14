@@ -3,11 +3,12 @@ import jaconv
 import regex as re
 from typing import List
 
-from utils import FileUtils, KanjiUtils
-from core import Parser
+from utils import FileUtils
+from utils.lang import KanjiUtils
+from core.parser_module import YomitanParser
 from config import DictionaryConfig
 
-class NanmedParser(Parser):
+class NanmedParser(YomitanParser):
 
     def __init__(self, config: DictionaryConfig):
         super().__init__(config)
@@ -20,18 +21,18 @@ class NanmedParser(Parser):
             "体温", "5q", "プロピオン酸", "マレイン酸", "遺伝子組換え", "メシル酸", "フマル酸", "次硝酸",
             "酢酸"
         }
-        
-        
-    def extract_entry_keys(self, entry: str) -> List[str]:
+
+    @staticmethod
+    def extract_entry_keys(entry: str) -> List[str]:
         entry = entry.replace('《', '').replace('》', '')
         entries = entry.split('|')
         return entries
-        
-        
-    def _process_file(self, filename: str, xml: str) -> int:
+
+
+    def _process_file(self, filename: str, file_content: str) -> int:
         local_count = 0
-        entry_keys = self.extract_entry_keys(filename)
-        soup = bs4.BeautifulSoup(xml, "lxml")
+        entry_keys = NanmedParser.extract_entry_keys(filename)
+        soup = bs4.BeautifulSoup(file_content, "lxml")
         
         if any(any(p in key for p in self.parentheses) for key in entry_keys):   
             if len(entry_keys) == 1:
@@ -95,9 +96,9 @@ class NanmedParser(Parser):
                         
                     local_count += self.parse_entry(clean_headword, reading, soup)
                 else:
-                    print(f"\nFound entry with non-kana reading: {headword}, reading: {reading}\n{xml}")
+                    print(f"\nFound entry with non-kana reading: {headword}, reading: {reading}\n{file_content}")
             elif len(entry_keys) > 2:
-                print(f"\nFound entry with more than 2 keys: {entry_keys}\n{xml}")
+                print(f"\nFound entry with more than 2 keys: {entry_keys}\n{file_content}")
         else:
             # Normal processing for entries without parentheses
             if len(entry_keys) == 1:
@@ -116,8 +117,8 @@ class NanmedParser(Parser):
                         
                     local_count += self.parse_entry(headword, reading, soup)
                 else:
-                    print(f"\nFound entry with non-kana reading: {headword}, reading: {reading}\n{xml}")
+                    print(f"\nFound entry with non-kana reading: {headword}, reading: {reading}\n{file_content}")
             elif len(entry_keys) > 2:
-                print(f"\nFound entry with more than 2 keys: {entry_keys}\n{xml}")
+                print(f"\nFound entry with more than 2 keys: {entry_keys}\n{file_content}")
                 
         return local_count

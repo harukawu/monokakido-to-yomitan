@@ -1,5 +1,5 @@
-from .rgko12_parser import Rgko12Parser
+from .rgko12_parser import RGKO12Parser
 
 __all__ = [
-	"Rgko12Parser"
+	"RGKO12Parser"
 ]

@@ -18,12 +18,15 @@ This project provides tools to convert dictionaries from the Monokakido format t
 - 小学館例解学習国語 第十二版
 - 小学館中日辞典 第3版
 - 旺文社漢字典 第四版
+- 新英和大辞典 第6版
+- オックスフォード英語類語辞典
+- ライトハウス英和辞典 第7版
 
 ## Prerequisites
 
 - Python 3.9+
 - Required libraries (see `requirements.txt`)
-- Monokakido dictionary files. No instructions will provided for extracting the raw dictionary data.
+- Monokakido dictionary files. No instructions will provided for extracting the binary dictionary data.
 
 ## Installation
 
@@ -55,26 +58,10 @@ This project provides tools to convert dictionaries from the Monokakido format t
 
 4. The converted dictionary will be saved in the `converted` directory.
 
-## Supported Dictionaries
-
-| Dictionary | Type | Status |
-|------------|------|--------|
-| 大辞泉 | DAIJISEN | ✅ |
-| 旺文社 全訳古語辞典 | OZK5 | ✅ |
-| 三省堂 全訳読解古語辞典 | SKOGO | ✅ |
-| 現代心理学辞典 | YDP | ✅ |
-| 角川新字源 改訂新版 | SHINJIGEN2 | ✅ (MDX) |
-| 南山堂医学大辞典 第20版 | NANMED20 | ✅ (SQL) |
-| 明鏡国語辞典 第三版 | MK3 | ✅ |
-| 旺文社国語辞典 第十二版 | OKO12 | ✅ |
-| 漢字林 | TISMKANJI | ✅ |
-| 小学館例解学習国語 第十二版 | RGKO12 | ✅ |
-| 小学館中日辞典 第3版 | CJ3 | ✅ |
-| 旺文社漢字典 第四版 | KJT | ✅ |
-
 ## Directory Structure
 
-- `/parser` - Contains parser classes for each dictionary
+- '/core' - Core module for creating and converting yommitan dictionaries, entries and elements.
+- `/parsers` - Contains parser classes for each dictionary
 - `/utils` - Utility functions for file handling, jp processing, etc.
 - `/config` - Configuration classes for dictionaries and paths
 - `/index` - Index reader classes for dictionary lookup

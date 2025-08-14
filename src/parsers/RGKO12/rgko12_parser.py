@@ -1,94 +1,108 @@
 import os
 import bs4
-import jaconv
-from typing import List
+import re
+from typing import List, Tuple
 
-from utils import FileUtils, KanjiUtils
-from core import Parser
+from parsers.Monokakido.parser import MonokakidoParser
 from config import DictionaryConfig
-from handlers import process_unmatched_entries
-from parsers.RGKO12.rgko12_utils import Rgko12Utils
 
-class Rgko12Parser(Parser):
+
+class RGKO12Parser(MonokakidoParser):
 
     def __init__(self, config: DictionaryConfig):
         super().__init__(config)
-        
-        
-    def normalize_keys(self, reading: str, entry_keys: List[str]) -> List[str]:
-        if all(KanjiUtils.is_kanji(c) for c in reading):
-            normalized_keys = [jaconv.kata2hira(entry) for entry in entry_keys]
-        elif any(KanjiUtils.is_hiragana(c) for c in reading):
-            normalized_keys = [jaconv.kata2hira(entry) for entry in entry_keys]
-        else:
-            normalized_keys = [jaconv.hira2kata(entry) for entry in entry_keys]
-        
-        return normalized_keys
-        
-    
-    def _process_file(self, filename: str, xml: str):
-        local_count = 0
+
+    @staticmethod
+    def is_tsukaiwake_entry(soup: bs4.BeautifulSoup) -> Tuple[bool, str]:
+        header_element = soup.find("table", class_="使い分け ヘッダあり")
+        main_element = soup.find("table", class_="使い分け")
+
+        index = soup.find("entry-index")
+        if index:
+            index = index.get_text(strip=True)
+
+        if main_element or header_element:
+            return True, index
+
+        return False, ""
+
+    @staticmethod
+    def get_tsukaiwake_entries(index_str: str) -> List[Tuple[str, str]]:
+        EXCLUDE_PATTERNS = [
+            r'\{RB:活:かつ\}',
+            r'\{RB:用:よう\}',
+            r'\{RB:関:かん\}',
+            r'\{RB:連:れん\}',
+            r'\{RB:敬:けい\}',
+            r'\{RB:語:ご\}',
+            r'\{RB:参:さん\}',
+            r'\{RB:考:こう\}'
+        ]
+
+        cleaned_str = index_str
+        for pattern in EXCLUDE_PATTERNS:
+            cleaned_str = re.sub(pattern, '', cleaned_str)
+
+        variants = cleaned_str.split('・')
+        pairs = []
+
+        for variant in variants:
+            if not variant.strip():
+                continue
+
+            # Extract all remaining RB tags
+            rb_tags = re.findall(r'\{RB:([^:]+):([^}]+)\}', variant)
+
+            if not rb_tags:
+                # Handle cases like "ほどく" without RB tags
+                kanji = variant
+                reading = variant
+                pairs.append((kanji, reading))
+                continue
+
+            # Extract remaining text after RB tags
+            remaining_text = re.sub(r'\{RB:[^}]+\}', '', variant)
+
+            # Build kanji and reading from RB tags and remaining text
+            kanji_parts = []
+            reading_parts = []
+
+            for kanji, reading in rb_tags:
+                kanji_parts.append(kanji)
+                reading_parts.append(reading)
+
+            kanji = ''.join(kanji_parts) + remaining_text
+            reading = ''.join(reading_parts) + remaining_text
+
+            pairs.append((kanji, reading))
+
+        return pairs
+
+    def _parse_entries_from_html(self, soup: bs4.BeautifulSoup) -> int:
+        count = 0
+
+        _, index = RGKO12Parser.is_tsukaiwake_entry(soup)
+        tsukaiwake_entries = RGKO12Parser.get_tsukaiwake_entries(index)
+        for kanji, kana in tsukaiwake_entries:
+            info_tag, pos_tag = self.pos_tag_strategy.get_from_term(kanji)
+            count += self.parse_entry(kanji, kana, soup, pos_tag=pos_tag, ignore_expressions=True)
+
+        return count
+
+    def _process_file(self, filename: str, file_content: str) -> int:
+        entry_count = 0
         filename_without_ext = os.path.splitext(filename)[0]
-        
-        # Get keys from index
+
         entry_keys = list(set(self.index_reader.get_keys_for_file(filename_without_ext)))
-        
+
         # Parse xml
-        soup = bs4.BeautifulSoup(xml, "xml")
-        
-        # Use headword for normalisation (Whether to convert keys to hiragana or keep katakana)
-        reading = Rgko12Utils.extract_reading(soup)
-        if not reading:
-            print(f"No reading found for: {filename_without_ext}")
-            
-        if not entry_keys:
-            print(f"No entry keys for: {filename_without_ext}")
-            
-        # Normalise and match keys
-        normalized_keys = self.normalize_keys(reading, entry_keys)
-        matched_key_pairs = KanjiUtils.match_kana_with_kanji(normalized_keys)
-        matched_key_pairs = process_unmatched_entries(
-            self, filename, normalized_keys, matched_key_pairs, self.manual_handler
-        )
-        
-        # Determine search ranking (rank kana entries higher)
-        has_kanji = any(kanji_part for kanji_part, _ in matched_key_pairs)
-        search_rank = 1 if not has_kanji else 0 
-        
-        is_tsukaiwake_entry, index = Rgko12Utils.is_tsukaiwake_entry(soup)
-        info_tag, pos_tag = "", ""
-        
-        if not is_tsukaiwake_entry:
-            for kanji_part, kana_part in matched_key_pairs:
-                if kanji_part:
-                    info_tag, pos_tag = self.get_pos_tags(kanji_part)
-                    local_count += self.parse_entry(
-                        kanji_part, kana_part, soup, pos_tag=pos_tag, search_rank=search_rank, ignore_expressions=True
-                    )
-                elif kana_part:
-                    local_count += self.parse_entry(
-                        kana_part, "", soup, pos_tag=pos_tag, search_rank=search_rank, ignore_expressions=True
-                    )
-                
-                
-            # Add any kana only entries if theres a "uk" tag (usually written using kana alone)
-            info_tags = info_tag.split()
-            if "uk" in info_tags:
-                # Find unique kana parts that haven't been parsed yet
-                unique_kana_parts = set()
-                for _, kana_part in matched_key_pairs:
-                    # Check if the kana part hasn't been added before
-                    if kana_part not in unique_kana_parts and not any(kanji is None and kana_part == kana for kanji, kana in matched_key_pairs):
-                        unique_kana_parts.add(kana_part)
-                        local_count += self.parse_entry(kana_part, "", soup, pos_tag=pos_tag, search_rank=1, ignore_expressions=True)
-                        
-        else:
-            tsukaiwake_entries = Rgko12Utils.get_tsukaiwake_entries(index)
-            for kanji, kana in tsukaiwake_entries:
-                info_tag, pos_tag = self.get_pos_tags(kanji)
-                local_count += self.parse_entry(kanji, kana, soup, pos_tag=pos_tag, ignore_expressions=True)
-                
-        if local_count == 0:
-            print(f"No entry was parsed for file {filename_without_ext}") 
-            
-        return local_count
+        soup = bs4.BeautifulSoup(file_content, "xml")
+
+        is_tsukaiwake_entry, _ = RGKO12Parser.is_tsukaiwake_entry(soup)
+        if is_tsukaiwake_entry:
+            entry_count += self._parse_entries_from_html(soup)
+
+        elif entry_keys:
+            entry_count += self._parse_head_entries(soup, entry_keys, filename)
+
+        return entry_count

@@ -28,13 +28,9 @@ class TismKanjiUtils:
         """
         Separates main definitions from notes (注/注解) in 漢字林.
         Handles nested structures within notes and multiple note types.
-        
-        Args:
-            content: The raw content string containing definitions and notes
-            
-        Returns:
-            tuple: (cleaned_definitions, notes_list)
-            where notes_list contains dicts with {'type': '注'/'注解', 'content': note_text}
+
+        :param content: The raw content string containing definitions and notes
+        :returns: Tuple[str, List[Dict[str, str]]] - where notes contains dicts with {'type': '注'/'注解', 'content': note_text}
         """
         # Initialize
         notes = []

@@ -1,6 +1,6 @@
 import regex as re
 
-from utils import KanjiUtils
+from utils.lang import KanjiUtils
 
 class OZK5Utils:
 

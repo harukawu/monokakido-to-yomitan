@@ -65,35 +65,27 @@ coverage.xml
 .ipynb_checkpoints
 
 # Local configuration
-.DS_Store
 .idea/
 *.swp
 *.swo
 .python-version
 
-# Project specific: Assets folder
-# First ignore everything in assets
-assets/*
-# Then re-include all directories
-!assets/*/
-# But ignore all files in those directories
-assets/*/*
-# Except for styles.css
-!assets/*/styles.css
-
-# Data folder
-# First ignore everything in data
-Data/*
+# First ignore everything in resources
+resources/*
 # Then re-include all dictionary folders
-!Data/*/
+!resources/*/
 
 # But ignore their contents
-Data/*/*
+resources/*/*
 # Except for the index folders and their contents
-!Data/*/index/
-!Data/*/index/*
+!resources/*/index/
+!resources/*/index/*
 
 # Converted dictionaries - ignore everything in converted
 converted/*
 # But keep the folder itself (uncomment if needed)
 # !converted/.gitkeep
+
+*.ttf
+*.otf
+.DS_Store

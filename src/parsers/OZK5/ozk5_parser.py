@@ -2,16 +2,16 @@ import os
 import json
 import bs4
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Optional
 
 from utils import KanjiUtils
 
-from core import Parser
+from core.parser_module import YomitanParser
 from config import DictionaryConfig
 from handlers import AudioHandler, process_unmatched_entries
 from parsers.OZK5.ozk5_utils import OZK5Utils
     
-class OZK5Parser(Parser):
+class OZK5Parser(YomitanParser):
     
     def __init__(self, config: DictionaryConfig):
         super().__init__(config)

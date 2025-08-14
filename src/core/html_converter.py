@@ -2,8 +2,9 @@
 from typing import List, Dict, Optional, Tuple
 import bs4
 
-from core.yomitan_dictionary import create_html_element
-from strategies import LinkHandlingStrategy, ImageHandlingStrategy, DefaultLinkHandlingStrategy, DefaultImageHandlingStrategy
+from core.yomitan import create_html_element
+from strategies.link import LinkHandlingStrategy, DefaultLinkHandlingStrategy
+from strategies.image import ImageHandlingStrategy, DefaultImageHandlingStrategy
 
 class HTMLToYomitanConverter:
 	def __init__(self, 
@@ -43,7 +44,7 @@ class HTMLToYomitanConverter:
 			data_dict[cls.replace("-", "_")] = ""
 			
 		for attribute, value in html_glossary.attrs.items():
-			if(isinstance(value, str)):
+			if(isinstance(value, str)) and attribute != "style":
 				data_dict[attribute.replace("-", "_")] = value
 				
 		return class_list, data_dict
@@ -138,22 +139,19 @@ class HTMLToYomitanConverter:
 			
 		# Recursively process children elements
 		html_elements = self._process_html_children(html_glossary, data_dict, class_list, ignore_expressions=ignore_expressions)
-		if not html_elements:
+		if not html_elements and tag_name != 'td':
 			return None
 		
 		if not isinstance(html_elements, List):
 			return html_elements
-		
-		# Check if all elements in the list are empty strings or whitespace-only strings
-		if all(isinstance(elem, dict) and 
-			elem.get('content') and 
-			(not elem['content'] or 
-				(isinstance(elem['content'], str) and elem['content'].isspace())) 
-			for elem in html_elements):
-			return None
-	
+
 		# add elements that yomitan supports
 		if tag_name in self.__yomitan_supported_tags:
+			if tag_name in ['td', 'th']:
+				row_span = data_dict.pop('rowspan') if 'rowspan' in data_dict else None
+				col_span = data_dict.pop('colspan') if 'colspan' in data_dict else None
+				return create_html_element(html_glossary.name, content=html_elements, data=data_dict, rowSpan=row_span, colSpan=col_span)
+
 			return create_html_element(html_glossary.name, content=html_elements, data=data_dict)
 	
 		# map any custom tags to html
@@ -171,10 +169,9 @@ class HTMLToYomitanConverter:
 				element = self.handle_link_element(html_glossary, html_elements, data_dict, class_list)
 				if element:
 					return element
-		else:
-			if tag_name == "a" or html_glossary.get("href", ""):
-				element = self.handle_link_element(html_glossary, html_elements, data_dict, class_list)
-				if element:
-					return element
+		elif tag_name == "a":
+			element = self.handle_link_element(html_glossary, html_elements, data_dict, class_list)
+			if element:
+				return element
 			
 		return create_html_element(target_tag, content=html_elements, data=data_dict)

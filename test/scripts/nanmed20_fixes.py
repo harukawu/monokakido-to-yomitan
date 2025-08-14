@@ -214,7 +214,7 @@ def process_html_content(html_content):
     
     modified_content, entity_map = preserve_html_entities(html_content)
     
-    soup = BeautifulSoup(modified_content, 'html.parser')
+    soup = BeautifulSoup(modified_content, 'html.parser_module')
     
     changes_made = False
     

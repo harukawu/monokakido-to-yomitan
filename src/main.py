@@ -25,7 +25,7 @@ def process_dictionary(config: DictionaryConfig, base_dir: Optional[str] = None,
     if not repackage_only:
         print(f"Parsing dictionary: {config.dict_name}")
         
-        # Create parser instance with required paths
+        # Create parser_module instance with required paths
         parser_class = config.get_parser_class()
         parser = parser_class(config)
         

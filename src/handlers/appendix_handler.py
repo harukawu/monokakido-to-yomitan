@@ -4,7 +4,7 @@ import bs4
 import os
 from pathlib import Path
 
-from core.yomitan_dictionary import Dictionary, DicEntry, create_html_element
+from core.yomitan import YomitanDictionary, DicEntry, create_html_element
 
 class AppendixHandler:
 	def __init__(self, 

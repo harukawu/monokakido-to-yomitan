@@ -1,24 +1,28 @@
 import bs4
 import os
 import regex as re
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List
 
-from utils import FileUtils, KanjiUtils
-from core.yomitan_dictionary import create_html_element
-from strategies import LinkHandlingStrategy, ImageHandlingStrategy
+from utils import FileUtils
+from core.yomitan import create_html_element
 
-class KJTLinkHandlingStrategy(LinkHandlingStrategy):
+from strategies.link import DefaultLinkHandlingStrategy
+from strategies.image import HashedImageStrategy
+
+class KJTLinkHandlingStrategy(DefaultLinkHandlingStrategy):
     
     def __init__(self):
         self.appendix_entries = FileUtils.load_json(os.path.join(os.path.dirname(__file__), "mapping/appendix_entries.json"))
-    
-    def clean_link_text(self, text: str) -> str:
+
+    @staticmethod
+    def clean_link_text(text: str) -> str:
         text = re.sub(r'[〒〓〈〉《》「」『』【】〔〕〖〗〘〙〚〛〝〞〟()\[\]{}]', '', text)
         return text
     
     def handle_link_element(self, html_glossary: bs4.element.Tag, html_elements: List,
                             data_dict: Dict, class_list: List[str]) -> Dict:
-        href_val = html_glossary.get("href", "").replace('index/', 'appendix/')
+        href_val = self.get_href(html_glossary)
+        href_val = href_val.replace('index/', 'appendix/')
         if html_glossary.name == "a":
             href = ""
             collected_text = []
@@ -31,7 +35,7 @@ class KJTLinkHandlingStrategy(LinkHandlingStrategy):
                     collected_text.append(child.get_text(strip=True))   
                 
             if collected_text:
-                href = self.clean_link_text("".join(filter(None, collected_text)).strip())
+                href = KJTLinkHandlingStrategy.clean_link_text("".join(filter(None, collected_text)).strip())
                 
             if href and not href.isdigit():  # Check that href is not empty and not only digits
                 return create_html_element("a", content=html_elements, href="?query="+href+"&wildcards=off")
@@ -44,80 +48,33 @@ class KJTLinkHandlingStrategy(LinkHandlingStrategy):
         return create_html_element("span", content=html_elements, data=data_dict)
     
     
-class KJTImageHandlingStrategy(ImageHandlingStrategy):
-    
-    def __init__(self):
-        self.image_file_map = FileUtils.load_json(os.path.join(os.path.dirname(__file__), "mapping/image_file_map.json"))
-    
-    
+class KJTImageHandlingStrategy(HashedImageStrategy):
+
     def handle_image_element(self, html_glossary: bs4.element.Tag, html_elements: List, 
                              data_dict: Dict, class_list: List[str]) -> Dict:
-        src_path = html_glossary.get("src", "").lstrip("/")
-        
-        if src_path:
-            if src_path.startswith("img") and src_path.endswith(".png"):
-                src_path = src_path[:-4] + '.avif'
-            
-            normalized_filename = self.get_normalized_filename(src_path)
-            if "筆順" in class_list:
-                summary_element = create_html_element("summary", content="筆順")
-                img_element = {
-                    "tag": "img", 
-                    "path": normalized_filename, 
-                    "collapsible": False, 
-                    "collapsed": False,
-                    "background": False,
-                    "appearance": "auto",
-                    "imageRendering": "auto",
-                    "data": data_dict
-                }
-                return create_html_element("details", content=[summary_element, img_element])
-            else:
-                image_element = {
-                    "tag": "img", 
-                    "path": normalized_filename, 
-                    "collapsible": False, 
-                    "collapsed": False,
-                    "background": False,
-                    "appearance": "auto",
-                    "imageRendering": "auto",
-                    "data": data_dict
-                }
-                html_elements.insert(0, image_element)
-            
-        return create_html_element("span", content=html_elements, data=data_dict)
-    
-    
-    def get_normalized_filename(self, src_path: str) -> str:
+        src_path = self.get_src_path(html_glossary)
         if not src_path:
-            return ""
-        
+            return create_html_element("span", content=html_elements, data=data_dict)
+
+        if  "img/" in src_path and ".png" in src_path:
+            src_path = src_path[:-4] + '.avif'
+
         if src_path.startswith('../'):
             src_path = src_path.replace('../', '', 1)
-            
+
         if src_path.startswith("img"):
-            original_filename = os.path.basename(src_path)
-            
-            # Try direct lookup first
-            if original_filename in self.image_file_map:
-                return src_path.replace(original_filename, self.image_file_map[original_filename])
-            
-            # Try normalized versions
-            import unicodedata
-            for norm_form in ['NFC', 'NFD', 'NFKC', 'NFKD']:
-                normalized = unicodedata.normalize(norm_form, original_filename)
-                if normalized in self.image_file_map:
-                    return src_path.replace(original_filename, self.image_file_map[normalized])
-                
-            # If exact match fails, try loose matching by removing the file extension
-            base_name = os.path.splitext(original_filename)[0]
-            for key in self.image_file_map:
-                key_base = os.path.splitext(key)[0]
-                if base_name == key_base:
-                    return src_path.replace(original_filename, self.image_file_map[key])
-                
-            return src_path
+            src_path = self._get_normalized_filename(src_path)
+
+        img_element = {
+            "tag": "img",
+            "path": src_path,
+            "background": False,
+            "data": data_dict
+        }
+
+        if "筆順" in class_list:
+            summary_element = create_html_element("summary", content="筆順")
+            return create_html_element("details", content=[summary_element, img_element])
         else:
-            return src_path
-        
-        return ""
+            html_elements.insert(0, img_element)
+            return create_html_element("span", content=html_elements, data=data_dict)
