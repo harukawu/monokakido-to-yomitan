@@ -161,7 +161,7 @@ class JukugoIndexReader:
         return result
 
     def categorize_entries(self, entries: List[str]) -> Dict[str, List[str]]:
-        from utils import KanjiUtils
+        from utils.lang import KanjiUtils
 
         kanji_entries = []
         kana_entries = []
@@ -185,7 +185,7 @@ class JukugoIndexReader:
         - kanji: List of kanji forms
         - readings: List of reading forms (kana)
         """
-        from utils import KanjiUtils  # Import here to avoid circular imports
+        from utils.lang import KanjiUtils  # Import here to avoid circular imports
         import jaconv
 
         grouped = self.get_grouped_entries_for_page(page_id)

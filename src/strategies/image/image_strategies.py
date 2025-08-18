@@ -26,6 +26,8 @@ class DefaultImageHandlingStrategy(ImageHandlingStrategy):
                 "tag": "img", 
                 "path": src_path,
                 "background": False,
+                "collapsed": False,
+                "collapsible": False,
                 "data": data_dict
             }
             html_elements.insert(0, image_element)
@@ -58,6 +60,8 @@ class GaijiImageHandlingStrategy(DefaultImageHandlingStrategy):
                 "tag": "img",
                 "path": src_path,
                 "background": False,
+                "collapsed": False,
+                "collapsible": False,
                 "data": data_dict
             }
             html_elements.insert(0, imgElement)

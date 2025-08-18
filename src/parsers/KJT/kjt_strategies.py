@@ -69,6 +69,8 @@ class KJTImageHandlingStrategy(HashedImageStrategy):
             "tag": "img",
             "path": src_path,
             "background": False,
+            "collapsed": False,
+            "collapsible": False,
             "data": data_dict
         }
 

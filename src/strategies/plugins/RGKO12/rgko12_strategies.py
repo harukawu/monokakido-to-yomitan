@@ -80,6 +80,8 @@ class RGKO12ImageHandlingStrategy(HashedImageStrategy):
                 "tag": "img",
                 "path": hashed_filename,
                 "background": False,
+                "collapsed": False,
+                "collapsible": False,
                 "data": data_dict
             }
 

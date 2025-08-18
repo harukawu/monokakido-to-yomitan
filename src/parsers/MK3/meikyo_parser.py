@@ -1,4 +1,5 @@
 import bs4
+#import jaconv
 
 from core.yomitan import DicEntry
 from parsers.Monokakido.parser import MonokakidoParser
